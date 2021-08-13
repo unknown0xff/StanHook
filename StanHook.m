@@ -60,13 +60,14 @@ void stanHookMap(Class clsa, Class clsb) {
         Method ma = class_getInstanceMethod(clsa, sel);
 
         if (stanHookCount >= STANHOOK_MAX) {
-            printf("StanHook: hook too many functions:%d\n", stanHookCount);
+            printf("StanHook: Hook too many method.\n");
             return;
         }
 
         if (!ma) {
-            printf("StanHook: can not hook method:%s\n", sel_getName(sel));
-            continue;
+            printf("StanHook: Could not hook method:%s\n",
+                   sel_getName(sel));
+            return;
         }
 
         IMP impa = method_getImplementation(ma);
