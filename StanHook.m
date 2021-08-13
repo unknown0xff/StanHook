@@ -33,7 +33,7 @@ id stanHookGetInst(id inst) {
 }
 
 IMP stanHookGetIMP(id inst, const char* selName) {
-    BOOL isMetaClass = ![inst isMemberOfClass:[inst class]];
+    BOOL isMetaClass = inst == [inst class];
     const char* clsName = class_getName([inst class]);
     for (int i = 0; i < stanHookCount; ++i) {
         if (strcmp(stanHookInfoList[i].clsName, clsName) == 0 &&
@@ -58,26 +58,34 @@ void stanHookMap(Class clsa, Class clsb) {
         Method mb = mlist[i];
         SEL sel = method_getName(mb);
         Method ma = class_getInstanceMethod(clsa, sel);
-        
-        if (ma && stanHookCount + 1 < STANHOOK_MAX) {
-            IMP impa = method_getImplementation(ma);
-            IMP impb = method_getImplementation(mb);
-            
-            //# mark Callback
-            int idx = stanHookCount;
-            stanHookInfoList[idx].clsName = classa;
-            stanHookInfoList[idx].selName = sel_getName(sel);
-            stanHookInfoList[idx].imp = impa;
-            stanHookInfoList[idx].isMetaClass = isMetaClass;
-            stanHookCount += 1;
-            
-            //# mark
-            const char* typeEncoding = method_getTypeEncoding(ma);
-            class_addMethod(sbc, sel, StanHookSpringBoardf, typeEncoding);
-            
-            //# Set Hook
-            method_setImplementation(ma, impb);
+
+        if (stanHookCount >= STANHOOK_MAX) {
+            printf("StanHook: hook too many functions:%d\n", stanHookCount);
+            return;
         }
+
+        if (!ma) {
+            printf("StanHook: can not hook method:%s\n", sel_getName(sel));
+            continue;
+        }
+
+        IMP impa = method_getImplementation(ma);
+        IMP impb = method_getImplementation(mb);
+        
+        //# mark Callback
+        int idx = stanHookCount;
+        stanHookInfoList[idx].clsName = classa;
+        stanHookInfoList[idx].selName = sel_getName(sel);
+        stanHookInfoList[idx].imp = impa;
+        stanHookInfoList[idx].isMetaClass = isMetaClass;
+        stanHookCount += 1;
+        
+        //# mark
+        const char* typeEncoding = method_getTypeEncoding(ma);
+        class_addMethod(sbc, sel, StanHookSpringBoardf, typeEncoding);
+        
+        //# Set Hook
+        method_setImplementation(ma, impb);
     }
 }
 
