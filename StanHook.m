@@ -33,23 +33,23 @@ id stanHookGetInst(id inst) {
 }
 
 IMP stanHookGetIMP(id inst, const char* selName) {
-    BOOL isMetaClass = inst == [inst class];
-    const char* clsName = class_getName([inst class]);
+    Class cls = [inst class];
+    BOOL isMeta = inst == cls;
     for (int i = 0; i < stanHookCount; ++i) {
-        if (strcmp(stanHookInfoList[i].clsName, clsName) == 0 &&
-            strcmp(stanHookInfoList[i].selName, selName) == 0 &&
-            stanHookInfoList[i].isMetaClass == isMetaClass) {
+        if (stanHookInfoList[i].cls == cls &&
+            stanHookInfoList[i].isMeta == isMeta &&
+            strcmp(stanHookInfoList[i].selName, selName) == 0) {
             return stanHookInfoList[i].imp;
         }
     }
     return nil;
 }
 
-void stanHookMap(Class clsa, Class clsb) {
-    BOOL isMetaClass = class_isMetaClass(clsa);
-    const char* classa = class_getName(clsa);
-    
+void stanHookMethodList(Class clsa, Class clsb, BOOL isMeta) {
     Class sbc = [StanHookSpringBoardC class];
+    
+    clsb = isMeta ? object_getClass(clsb): clsb;
+    Class clst = isMeta ? object_getClass(clsa): clsa;
 
     unsigned int count = 0;
     Method* mlist = class_copyMethodList(clsb, &count);
@@ -57,7 +57,7 @@ void stanHookMap(Class clsa, Class clsb) {
     for (unsigned int i = 0; i <count; ++i) {
         Method mb = mlist[i];
         SEL sel = method_getName(mb);
-        Method ma = class_getInstanceMethod(clsa, sel);
+        Method ma = class_getInstanceMethod(clst, sel);
 
         if (stanHookCount >= STANHOOK_MAX) {
             printf("StanHook: Hook too many method.\n");
@@ -74,12 +74,12 @@ void stanHookMap(Class clsa, Class clsb) {
         IMP impb = method_getImplementation(mb);
         
         //# mark Callback
-        int idx = stanHookCount;
-        stanHookInfoList[idx].clsName = classa;
-        stanHookInfoList[idx].selName = sel_getName(sel);
-        stanHookInfoList[idx].imp = impa;
-        stanHookInfoList[idx].isMetaClass = isMetaClass;
-        stanHookCount += 1;
+        StanHookInfo* hookInfo = &stanHookInfoList[stanHookCount++];
+
+        hookInfo->cls = clsa;
+        hookInfo->isMeta = isMeta;
+        hookInfo->selName = sel_getName(sel);
+        hookInfo->imp = impa;
         
         //# mark
         const char* typeEncoding = method_getTypeEncoding(ma);
@@ -90,10 +90,8 @@ void stanHookMap(Class clsa, Class clsb) {
     }
 }
 
-void stanHookInstall(const char* classa, Class clsb ) {
+void stanHookInstall(const char* classa, Class clsb) {
     Class clsa = objc_getClass(classa);
-    stanHookMap(clsa, clsb);
-    Class metaa = object_getClass(clsa);
-    Class metab = object_getClass(clsb);
-    stanHookMap(metaa, metab);
+    stanHookMethodList(clsa, clsb, NO);
+    stanHookMethodList(clsa, clsb, YES);
 }

@@ -27,17 +27,17 @@ SConstructor{stanHookInstall(#x, [__##x class]);}\
 #define StanHookEnd @end
 
 typedef struct {
-    const char* clsName;
+    Class cls;
     const char* selName;
     IMP imp;
-    BOOL isMetaClass;
+    BOOL isMeta;
 } StanHookInfo;
 
 id stanHookGetInst(id inst);
 IMP stanHookGetIMP(id inst, const char* selName);
 
 id stanHookMakeSprigBoard(id inst);
-void stanHookMap(Class clsa, Class clsb);
+void stanHookMethodList(Class clsa, Class clsb, BOOL isMeta);
 void stanHookInstall(const char* classa, Class clsb);
 
 #endif /* StanHook_h */
