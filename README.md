@@ -11,7 +11,7 @@ Objective-C Hook Framework
 Xclass(SomeClassName)
 - (void)someFunction {
   NSLog("hooked success");
-  [Xorig someFunction]; //invoke the original method.
+  [Xself someFunction]; //invoke the original method.
 }
 Xend
 ```
