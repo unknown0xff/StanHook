@@ -1,11 +1,11 @@
 //# coding by *
 
-.global _StanHookSpringBoardf
+.global __stanhook_handler
 .text
 .align 2
 
 #ifdef __arm64__
-_StanHookSpringBoardf:
+__stanhook_handler:
 
 sub sp, sp, #(16 * 10)
 stp x29, x30, [sp, #(16 * 8)]
@@ -20,10 +20,10 @@ stp d2, d3, [sp, #(16*5)]
 stp d4, d5, [sp, #(16*6)]
 stp d6, d7, [sp, #(16*7)]
 
-bl _stanHookGetInst
+bl _stanhook_get_real_self
 str x0, [sp]
 ldr x1, [sp, #8]
-bl _stanHookGetIMP
+bl _stanhook_get_imp
 mov x9, x0
 
 ldp d0, d1, [sp, #(16*4)]
@@ -40,10 +40,9 @@ ldp x29, x30, [sp,#(16 * 8)]
 add sp, sp, #(16 * 10)
 
 br x9
+
 #else
-
-_StanHookSpringBoardf:
+__stanhook_handler:
 bx lr
-
 #endif
 
