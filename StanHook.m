@@ -6,47 +6,51 @@
 
 #import "StanHook.h"
 
-extern void StanHookSpringBoardf(void);
+static stanhook_node_t stanhook_node_list[STANHOOK_MAX];
+static int stanhook_node_count = 0;
 
-static StanHookInfo stanHookInfoList[STANHOOK_MAX];
-static int stanHookCount = 0;
-
-@interface StanHookSpringBoardC: NSObject
-@property (nonatomic, weak) id impInst;
+@interface StanhookXselfclass: NSObject
+@property (nonatomic, weak) id realSelf;
++ (instancetype)XselfWithRealSelf:(id)realSelf;
 @end
 
-@implementation StanHookSpringBoardC
--(instancetype)initWithInstance:(id)inst {
-    if ((self = [super init])) {
-        self.impInst = inst;
+@implementation StanhookXselfclass
++ (instancetype)XselfWithRealSelf:(id)realSelf {
+    StanhookXselfclass *xself;
+    if ((xself = [[StanhookXselfclass alloc] init])) {
+        xself.realSelf = realSelf;
     }
-    return self;
+    return xself;
 }
 @end
 
-id stanHookMakeSprigBoard(id inst) {
-    return [[StanHookSpringBoardC alloc] initWithInstance:inst];
+id stanhook_make_xself(id real_self) {
+    return [StanhookXselfclass XselfWithRealSelf:real_self];
 }
 
-id stanHookGetInst(id inst) {
-    return [inst impInst];
+id stanhook_get_real_self(StanhookXselfclass *xself) {
+    return xself.realSelf;
 }
 
-IMP stanHookGetIMP(id inst, const char* selName) {
-    Class cls = [inst class];
-    BOOL isMeta = inst == cls;
-    for (int i = 0; i < stanHookCount; ++i) {
-        if (stanHookInfoList[i].cls == cls &&
-            stanHookInfoList[i].isMeta == isMeta &&
-            strcmp(stanHookInfoList[i].selName, selName) == 0) {
-            return stanHookInfoList[i].imp;
+BOOL is_inst_kindof_class(id inst, Class cls) {
+    return [inst isKindOfClass:cls] || [inst class] == cls;
+}
+
+IMP stanhook_get_imp(id real_self, const char* sel_name) {
+    Class cls = [real_self class];
+    BOOL is_meta = real_self == cls;
+    for (int i = 0; i < stanhook_node_count; ++i) {
+        if (is_inst_kindof_class(real_self, stanhook_node_list[i].cls) &&
+            stanhook_node_list[i].is_meta == is_meta &&
+            strcmp(stanhook_node_list[i].sel_name, sel_name) == 0) {
+            return stanhook_node_list[i].imp;
         }
     }
     return nil;
 }
 
-void stanHookMethodList(Class clsa, Class clsb, BOOL isMeta) {
-    Class sbc = [StanHookSpringBoardC class];
+void stanhook_hook_methods(Class clsa, Class clsb, BOOL isMeta) {
+    Class XselfClass = [StanhookXselfclass class];
     
     clsb = isMeta ? object_getClass(clsb): clsb;
     Class clst = isMeta ? object_getClass(clsa): clsa;
@@ -59,39 +63,38 @@ void stanHookMethodList(Class clsa, Class clsb, BOOL isMeta) {
         SEL sel = method_getName(mb);
         Method ma = class_getInstanceMethod(clst, sel);
 
-        if (stanHookCount >= STANHOOK_MAX) {
-            printf("StanHook: Hook too many method.\n");
+        if (stanhook_node_count >= STANHOOK_MAX) {
             return;
         }
 
         if (!ma) {
-            printf("StanHook: Could not hook method:%s\n",
+            fprintf(stderr, "stanhook: could not hook method:%s\n",
                    sel_getName(sel));
             return;
         }
 
         IMP impa = method_getImplementation(ma);
         IMP impb = method_getImplementation(mb);
-        
-        //# mark Callback
-        StanHookInfo* hookInfo = &stanHookInfoList[stanHookCount++];
 
-        hookInfo->cls = clsa;
-        hookInfo->isMeta = isMeta;
-        hookInfo->selName = sel_getName(sel);
-        hookInfo->imp = impa;
+        //# mark Callback
+        stanhook_node_t* node = &stanhook_node_list[stanhook_node_count++];
+
+        node->cls = clsa;
+        node->is_meta = isMeta;
+        node->sel_name = sel_getName(sel);
+        node->imp = impa;
         
         //# mark
         const char* typeEncoding = method_getTypeEncoding(ma);
-        class_addMethod(sbc, sel, StanHookSpringBoardf, typeEncoding);
+        class_addMethod(XselfClass, sel, _stanhook_handler, typeEncoding);
         
         //# Set Hook
         method_setImplementation(ma, impb);
     }
 }
 
-void stanHookInstall(const char* classa, Class clsb) {
+void stanhook_apply(const char* classa, Class clsb) {
     Class clsa = objc_getClass(classa);
-    stanHookMethodList(clsa, clsb, NO);
-    stanHookMethodList(clsa, clsb, YES);
+    stanhook_hook_methods(clsa, clsb, NO);
+    stanhook_hook_methods(clsa, clsb, YES);
 }
