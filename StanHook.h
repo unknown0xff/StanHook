@@ -4,40 +4,39 @@
 #define StanHook_h
 
 #ifndef STANHOOK_MAX
-#define STANHOOK_MAX 0x200
+#define STANHOOK_MAX 1024
 #endif
 
 #define SConcat_(a, b) a ## b
 #define SConcat(a, b) SConcat_(a, b)
-
-// Constructor
-#define SConstructor static __attribute__((constructor)) void SConcat(SConstructor, __LINE__)()
+#define XConstructor static __attribute__((constructor)) void SConcat(SConstructor, __LINE__)()
 
 #define Xclass(x) @interface __##x: NSObject @end \
-SConstructor{stanHookInstall(#x, [__##x class]);}\
+XConstructor{stanhook_apply(#x, [__##x class]);}\
 @implementation __##x
 
-#define Xorig stanHookMakeSprigBoard(self)
+#define Xself (stanhook_make_xself(self))
 #define Xend @end
 
-#define StanHook(x) @interface __##x: NSObject @end \
-SConstructor{stanHookInstall(#x, [__##x class]);}\
-@implementation __##x
-#define StanCallback stanHookMakeSprigBoard(self)
-#define StanHookEnd @end
+extern void _stanhook_handler(void);
 
-typedef struct {
+struct stanhook_node_s{
     Class cls;
-    const char* selName;
+    const char* sel_name;
     IMP imp;
-    BOOL isMeta;
-} StanHookInfo;
+    BOOL is_meta;
+};
 
-id stanHookGetInst(id inst);
-IMP stanHookGetIMP(id inst, const char* selName);
+typedef struct stanhook_node_s stanhook_node_t;
 
-id stanHookMakeSprigBoard(id inst);
-void stanHookMethodList(Class clsa, Class clsb, BOOL isMeta);
-void stanHookInstall(const char* classa, Class clsb);
+BOOL is_inst_kindof_class(id inst, Class cls);
+
+id stanhook_get_real_self(id xself);
+IMP stanhook_get_imp(id real_self, const char* sel_name);
+
+id stanhook_make_xself(id real_self);
+
+void stanhook_hook_methods(Class clsa, Class clsb, BOOL isMeta);
+void stanhook_apply(const char* classa, Class clsb);
 
 #endif /* StanHook_h */
